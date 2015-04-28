@@ -1,8 +1,10 @@
 #include "msp430G2553.h"
 #define MASK 0x38
-/* 
-#define MASK1 0x08
-#define MASK2 0x10
+ 
+#define MASK1 0x44
+#define MASK2 0x01
+
+/*
 #define MASK3 0x18
 #define MASK4 0x20
 #define MASK5 0x28
@@ -10,14 +12,14 @@
 */
 # include "stdio.h"
 # include "math.h"
-#define STOP 1
+#define STOP 3
 #define TIGHTL 2
-#define DRIVE 3
+#define DRIVE 1
 #define SOFTL 4
 #define TIGHTR 5
-#define LAP 6
+#define LAP 8
 #define SOFTR 7
-#define CROSS 8
+#define CROSS 6
 #define SLOCK 9
 
 
@@ -33,9 +35,9 @@ int i = 0;
 long temp;
 long IntDegC;
 
-unsigned int b = 0xc430;        // Keston osoiteen apumuuttuja... also known as the starting location for the memory 
+unsigned int b = 0xC430;        // Keston osoiteen apumuuttuja... also known as the starting location for the memory 
 int a;
-
+int z;
 
 unsigned char *Time_ptr;
 
@@ -43,7 +45,7 @@ main()
 {
 
   //flash reading
-   volatile unsigned int g = 0xc430;			// Apumuuttujia Flash-pointtereille
+   volatile unsigned int g = 0xC430;			// Apumuuttujia Flash-pointtereille
   
   unsigned char *Driv_ptrG;					// Pointterit
   
@@ -52,10 +54,11 @@ WDTCTL = WDTPW + WDTHOLD;
 
 int u = 0;
  
-  
+  int v = 0;
   int e = 0;
   int d = 0;
   int h = 0;
+  z = 0;
  if (CALBC1_1MHZ ==0xFF || CALDCO_1MHZ == 0xFF)                                     
   {  
     while(1);                               // If calibration constants erased
@@ -70,12 +73,12 @@ int u = 0;
        char *Flash_ptr;
    unsigned int c;
 
-  Flash_ptr = (char *) 0xc430;              // Alustetaan Flash pointteri
+  Flash_ptr = (char *) 0xC430;              // Alustetaan Flash pointteri
   FCTL1 = FWKEY + ERASE;                    // Asetetaan Erase bit
   FCTL3 = FWKEY;                            // Poistetaan Lock bit
   FCTL1 = FWKEY + WRT;                      // WRT bitillä sallitaan kirjoitus
 
-  for (c=0; c<5000; c++)			    // Toistetaan char-kirjoitus koko alueelle
+  for (c=0; c<10000; c++)			    // Toistetaan char-kirjoitus koko alueelle
   {
     *Flash_ptr++ = 0xEE;                    // Kirjoitetaan char
   }
@@ -100,6 +103,9 @@ int u = 0;
     while(1) 
     {
    
+    
+
+      
      /* {
     ADC10CTL0 |= ENC + ADC10SC;             // Sampling and conversion start
     __bis_SR_register(CPUOFF + GIE);        // LPM0 with interrupts enabled
@@ -118,7 +124,7 @@ int u = 0;
 
         
  ////KANAVA 1.2 TIMERI ALKAA
-    P1DIR |= 0x44;                            // P1.2 
+    P1DIR |= 0x45;                            // P1.2 
    // P1SEL |= 0x44;                            // P1.2 
     
     TA0CCR0 = 0xFF;         //NopeusMAX
@@ -140,16 +146,28 @@ int u = 0;
       A = 1;
       
       if (d != 1 && (A == 1 && K == 0)) {
-      g = 0xc430;
+      g = 0xC430;
       d = 1;
       }
       
-      if (g < 0xd7b8)
+      if (g < 0xEB40)
   {
+    
+    
     
       Driv_ptrG = (unsigned char *) g;		// Alustetaan pointterien alkuosotteet
       
-            e = *Driv_ptrG;					// Haetaan apumuuttujille arvot pointtereilla
+            e = *Driv_ptrG;
+					
+            if (e == 0x60) {
+            e = 0x30;
+            } else if (e == 0x66) {
+            e = 0x38;
+            } else if (e == 0x64) {
+            e = 0x10;
+            } else if (e == 0x62) {
+            e = 0x18;
+            }
       
           Ants = e&MASK;
          
@@ -179,8 +197,8 @@ int u = 0;
       {
    // puts("STOP"); 
     if (Ants == 0x00) {
-    TA0CCR1 = 0x0000; //nopeus1
-    P1OUT = 0x00;
+    // TA0CCR1 = 0x0000; //nopeus1
+    // P1OUT = 0x00;
       STATE = STOP;
     } else {
     STATE = DRIVE;
@@ -197,8 +215,8 @@ case DRIVE:
    // puts("DRIVE");
     
     if (Ants == 0x10 || Ants == 0x00) {
-      TA0CCR1 = 0x00F0; //nopeus1
-    P1OUT = 0x44;
+      TA0CCR1 = 0x00B6; //nopeus1
+    P1OUT = 0x44&MASK1;
  
     STATE = DRIVE;
     
@@ -215,8 +233,8 @@ case CROSS:
    // puts("CROSS");
     
     if (A == 1000) {
-    TA0CCR1 = 0x0078; //nopeus1
-    P1OUT = 0x04;   
+    TA0CCR1 = 0x00B6; //nopeus1
+    P1OUT = 0x04&MASK1;   
     STATE = CROSS;
    
     } else {
@@ -230,8 +248,8 @@ case TIGHTR:
    // puts("TIGHTR");
     
     if (Ants == 0x20 || Ants == 0x00) {
-    TA0CCR1 = 0x0078;
-    P1OUT = 0x04;  
+    TA0CCR1 = 0x003C;
+    P1OUT = 0x04&MASK1;  
     STATE = TIGHTR;
    
     } else {
@@ -245,8 +263,8 @@ case TIGHTR:
    // puts("TIGHTL");
     
     if (Ants == 0x08 || Ants == 0x00) {
-    TA0CCR1 = 0x0078;
-    P1OUT = 0x40;  
+    TA0CCR1 = 0x003C;
+    P1OUT = 0x40&MASK1;  
     STATE = TIGHTL;
     
     } else {
@@ -260,8 +278,8 @@ case TIGHTR:
    // puts("SOFTR"); 
     
     if (Ants == 0x30 || Ants == 0x00) {
-    TA0CCR1 = 0x00B6;
-    P1OUT = 0x04;  
+    TA0CCR1 = 0x0078;
+    P1OUT = 0x04&MASK1;  
     STATE = SOFTR;
    
     } else {
@@ -276,7 +294,7 @@ case TIGHTR:
        
     if (Ants == 0x18 || Ants == 0x00) {
     TA0CCR1 = 0x00B6;
-    P1OUT = 0x40;  
+    P1OUT = 0x40&MASK1;  
     STATE = SOFTL;
     
     } else {
@@ -292,8 +310,8 @@ case TIGHTR:
     
         
     if (Ants == 0x38) {
-    TA0CCR1 = 0x00F0; //nopeus1
-    P1OUT = 0x44;
+    TA0CCR1 = 0x00B6; //nopeus1
+    P1OUT = 0x44&MASK1;
     K = K + 1;
     STATE = SLOCK;
     
@@ -303,7 +321,7 @@ case TIGHTR:
     }
     
     if (A == 1 && K == 1) {
-    P1OUT = 0x00;
+    P1OUT = 0x00&MASK1;
     Ants = 0x00;
     STATE = LAP;
     }
@@ -317,7 +335,7 @@ case TIGHTR:
        
     if (Ants == 0x38) {
      TA0CCR1 = 0x00F0; //nopeus1
-    P1OUT = 0x44;
+    P1OUT = 0x44&MASK1;
     STATE = SLOCK;
     
     } else {
@@ -335,18 +353,32 @@ case TIGHTR:
              
  
 
-  if (b < 0xd7b8 || Ants != 0x28)
+  if (b < 0xEB40)
   {
     FCTL1 = FWKEY + ERASE;
     FCTL3 = FWKEY;
     FCTL1 = FWKEY + WRT;
     
-    //mitä vittua?
-    if (a != 0x38){
-    *Time_ptr = a;
+    
+    
+    if (a == 0x38 || a == 0x30 || a == 0x10 || a == 0x18) {
+      if (a == 0x38) {
+      z = 0x66;
+      }else if (a == 0x30) {
+        z = 0x60; 
+      } else if (a == 0x10) {
+      z = 0x64;
+      } else
+        z = 0x62;
+      
     } else {
-    *Time_ptr = 0x3c;
+    z = a;
     }
+      
+    
+    
+    *Time_ptr = z;
+    
     
     
     h = h+1;
@@ -356,10 +388,12 @@ case TIGHTR:
   
     }
     
-    u = 25000;                          // SW Delay
+    u = 2000;                          // SW Delay
       do u--;
       
       while (u != 0);
+      
+    
     
     i = i+1;
     g = g+1;
